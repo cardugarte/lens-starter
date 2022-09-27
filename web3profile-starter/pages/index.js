@@ -1,13 +1,15 @@
-import styles from "../styles/Home.module.css";
-import { Tabs, Button } from "antd";
+import styles from "../styles/Home.module.css"
+import { Tabs, Button } from "antd"
+import { urqlClient, Profile } from "./api/lensCalls"
+import { Moralis } from 'moralis'
+import { EvmChain } from '@moralisweb3/evm-utils';
 
 
-const { TabPane } = Tabs;
+const { TabPane } = Tabs
 
-export default function Home() {
-  
-  let nftArray;
-  let myNFT;
+export default function Home({ profile, nftArray }) {
+  console.log(profile)
+  let myNFT = ''
 
   async function follow(){
 
@@ -17,27 +19,27 @@ export default function Home() {
     <div className={styles.container}>
       <img
         className={styles.banner}
-        src={"https://ipfs.moralis.io:2053/ipfs/QmNgA9MNWFfRaoKzBt21VghQopnKXBgVxzyGvv5qjsV4Vw/media/2"}
+        src={profile.coverPicture.original.url}
         alt="cover"
       />
       <div className={styles.profile}>
         <div className={styles.profileLeft}>
           <img
             className={styles.profileImg}
-            src={"https://ipfs.moralis.io:2053/ipfs/QmNgA9MNWFfRaoKzBt21VghQopnKXBgVxzyGvv5qjsV4Vw/media/1"}
+            src={ profile.picture.original.url }
             alt="profileImg"
           />
           <div className={styles.info}>
-            <div className={styles.name}>Web3 Mage</div>
-            <div className={styles.handle}>moralismage.lens</div>
-            <div className={styles.bio}>Buidling web3 solutions with magical moralis mage abilities 🧙‍♂️</div>
+            <div className={styles.name}>{ profile.name }</div>
+            <div className={styles.handle}>{ profile.handle }</div>
+            <div className={styles.bio}>{ profile.bio }</div>
             <div className={styles.follow}>
               <div>Followers</div>
-              <div>472</div>
+              <div>{ profile.stats.totalFollowers }</div>
             </div>
             <div className={styles.follow}>
               <div>Following</div>
-              <div>34</div>
+              <div>{ profile.stats.totalFollowing }</div>
             </div>
           </div>
         </div>
@@ -79,3 +81,39 @@ export default function Home() {
   );
 }
 
+
+export async function getServerSideProps() {
+  const response = await urqlClient.query( Profile ).toPromise()
+  await Moralis.start({ apiKey: process.env.MORALIS_API_KEY })
+//   await Moralis.start({
+//     apiKey: process.env.MORALIS_API_KEY,
+// });
+// await Moralis.start({
+//   apiKey: "WcPLb6F4JPp1HGM4qumvcpwqFB9mzSIKtuoM8ysHcLokG7d58bJ98OVa6ttTW8bu"
+// })
+  const responseMoralis = await Moralis.EvmApi.nft.getWalletNFTs({
+    address: response?.data.profile.ownedBy,
+    chain: EvmChain.POLYGON,
+});
+console.log(responseMoralis);
+nftArray = []
+
+  myNFT = responseMoralis?.data.result
+  for (let i = 0; i < nftArray.length; i++) {
+    if(nftArray[i].metadata !== null) {
+      if(
+        'animation_url' in JSON.parse(myNFT[i].metadata) &&
+        JSON.parse(myNFT[i].metadata).animation_url !== null &&
+        JSON.parse(myNFT[i].metadata),animation_url.includes('.lens')) {
+          nftArray.push(JSON.parse(myNFT[i].metadata).animation_url)
+        }
+    }
+    
+  }
+
+
+
+  return {
+    props: { profile: response?.data.profile, nftArray }
+  }
+}
